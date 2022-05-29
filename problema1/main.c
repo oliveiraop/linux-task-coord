@@ -45,7 +45,7 @@ void *threadX (void *args){
 void *threadY (void *args){
 
   buffer_t **buffers;
-  buffers = (buffer_t *) args;
+  buffers = (buffer_t **) args;
   printf("YRecebi o buffer %d e o %d\n", buffers[0]->number, buffers[1]->number);
 
   while (1){
