@@ -10,17 +10,10 @@
 
 sem_t s ;
 
-void * ThreadControlCouch(){
+void *threadControlCouch(){
 
 } 
 
-void * ThreadControlCouch(){
-    
-} 
-
-void * ThreadControlCouch(){
-    
-} 
 
 int main (int argc, char *argv[])
 {
@@ -38,7 +31,7 @@ int main (int argc, char *argv[])
    // create threads
    for(i=0; i < THREADS_BARBERS; i++)
    {
-      status = pthread_create (&threadClients[i], &attr, ThreadControlCouch, (void *) i) ;
+      status = pthread_create (&threadClients[i], &attr, threadControlCouch, (void *) i) ;
       if (status)
       {
          perror ("pthread_create") ;
