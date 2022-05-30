@@ -1,9 +1,12 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <termios.h>
 #include <unistd.h>
 #include <semaphore.h>
 
+typedef struct termios termios;
+int on = 1;
 
 // Buffers and mutexes
 
@@ -74,17 +77,29 @@ void *threadZ (void *args){
 
 }
 
+void *threadPrint(void *args) {
+  while(1) {
+    printf("Teste: %c\n", um);
+    sleep(3);
+  }
+  
+  pthread_exit(NULL);
+}
 
 int main (int argc, char *argv[]){
     /*
     X Y Z N1 N2
     */
+
+
+
+    
+
     if (argc != 6) {
       perror("argument list incorrect");
       exit(EXIT_FAILURE);
     }
     printf("%s %s %s \n", argv[1], argv[2], argv[3]);
-    
     int x_size = atoi(argv[1]);
     int y_size = atoi(argv[2]);
     int z_size = atoi(argv[3]);
@@ -182,6 +197,17 @@ int main (int argc, char *argv[]){
         }
     }
     printf("Threads Z criadas \n");
+
+    termios oldt;
+    tcgetattr(STDIN_FILENO, &oldt);
+    termios newt = oldt;
+    newt.c_lflag &= ~(ECHO | ICANON);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    while (1) {
+      um = getchar();
+      sleep(0.1);
+    }
 
     pthread_attr_destroy (&attr);
     pthread_exit(NULL);
