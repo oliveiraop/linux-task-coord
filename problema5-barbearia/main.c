@@ -38,7 +38,7 @@ int main (int argc, char *argv[])
    // create threads
    for(i=0; i < THREADS_BARBERS; i++)
    {
-      status = pthread_create (&threadClients[i], &attr, threadBody, (void *) i) ;
+      status = pthread_create (&threadClients[i], &attr, ThreadControlCouch, (void *) i) ;
       if (status)
       {
          perror ("pthread_create") ;
