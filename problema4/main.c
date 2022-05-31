@@ -10,152 +10,79 @@ int on = 1;
 
 // Buffers and mutexes
 
-typedef struct {
-  int number;
-  pthread_mutex_t mutex;
-  sem_t itens;
-  sem_t vagas;
-} buffer_t;
+sem_t cadeiras;
+sem_t monitoria;
+sem_t estudantes;
 
-void insere(buffer_t* buffer, int item) {
-  sem_wait(&(buffer->vagas));
-  pthread_mutex_lock(&(buffer->mutex));
-  sem_post(&(buffer->itens));
-  printf("Item foi inserido do buffer %d\n", buffer->number);
-  pthread_mutex_unlock(&(buffer->mutex));
-}
-
-void retira(buffer_t* buffer, int item) {
-  sem_wait(&(buffer->itens));
-  pthread_mutex_lock(&(buffer->mutex));
-  sem_post(&(buffer->vagas));
-  printf("Item foi retirado do buffer %d\n", buffer->number);
-  pthread_mutex_unlock(&(buffer->mutex));
-}
-
-void *threadX (void *args){
-
-  buffer_t *buffer1 = (buffer_t *) args;
-  printf("XRecebi o buffer %d\n", buffer1->number);
-
-  while (1){
-      insere(buffer1, 1);
-      sleep(3);
+void *threadEstudante (void *args){
+  if (!sem_trywait(&cadeiras))
+  {
+    sem_post(&estudantes);
+    if (sem_trywait(&monitoria)) {
+      printf("Estudante chega e senta para aguardar\n");
+      sem_wait(&monitoria);
+    }
+    sem_post(&cadeiras);
+    printf("Estudante entra para receber monitoria\n");
   }
-  pthread_exit(NULL);
-}
-
-void *threadY (void *args){
-
-  buffer_t **buffers;
-  buffers = (buffer_t **) args;
-  printf("YRecebi o buffer %d e o %d\n", buffers[0]->number, buffers[1]->number);
-
-  while (1){
-      retira(buffers[0], 1);
-      sleep(1);
-      insere(buffers[1], 1);
-      sleep(3);
-  }
-
-
-
-  pthread_exit(NULL);
-
-}
-
-void *threadZ (void *args){
-  buffer_t *buffer2 = (buffer_t *) args;
-  printf("ZRecebi o buffer %d\n", buffer2->number);
-
-  while (1){
-      retira(buffer2, 1);
-      sleep(3);
+  else
+  {
+    printf("Não tem cadeiras disponíveis\n");
   }
 
   pthread_exit(NULL);
-
 }
 
-void *threadPrint(void *args) {
-  while(1) {
-    printf("Teste: %c\n", um);
-    sleep(3);
+
+void *threadMonitor(void *args) {
+  while(on) {
+
+    if (!sem_trywait(&estudantes)) {
+      sleep(3);
+      sem_post(&monitoria);
+    } else {
+      printf("Monitor está tirando uma sonequinha \n");
+      sem_wait(&estudantes);
+      sleep(3);
+      sem_post(&monitoria);
+    }
+    printf("Aluno foi atendido e despensado \n");
   }
-  
+
   pthread_exit(NULL);
 }
 
 int main (int argc, char *argv[]){
     /*
-    X Y Z N1 N2
+    n
+    n = numero de cadeiras
     */
 
 
 
     
 
-    if (argc != 6) {
+    if (argc != 2) {
       perror("argument list incorrect");
       exit(EXIT_FAILURE);
     }
     printf("%s %s %s \n", argv[1], argv[2], argv[3]);
-    int x_size = atoi(argv[1]);
-    int y_size = atoi(argv[2]);
-    int z_size = atoi(argv[3]);
-    int b1_size = atoi(argv[4]);
-    int b2_size = atoi(argv[5]);
-    if (x_size <= 0 && x_size>=30) {
-      perror("X length out of scope");
+    int n = atoi(argv[1]);
+    if (n <= 2 && n>=30) {
+      perror("n length out of scope");
       exit(EXIT_FAILURE);
     }
-    if (y_size <= 0 && y_size>=30) {
-      perror("Y length out of scope");
-      exit(EXIT_FAILURE);
-    }
-    if (z_size <= 0 && z_size>=30) {
-      perror("Z length out of scope");
-      exit(EXIT_FAILURE);
-    }
-    if (b1_size <= 0 && b1_size>=30) {
-      perror("B1 length out of scope");
-      exit(EXIT_FAILURE);
-    }
-    if (b2_size <= 0 && b2_size>=30) {
-      perror("B2 length out of scope");
-      exit(EXIT_FAILURE);
-    }
+    printf("Botao 'e' cria thread estudante e botão 'x' encerra aplicação\n");
     // array de threads
-    pthread_t *X;
-    pthread_t *Y;
-    pthread_t *Z;
-    X = (pthread_t *) malloc(x_size * sizeof(pthread_t));
-    Y = (pthread_t *) malloc(y_size * sizeof(pthread_t));
-    Z = (pthread_t *) malloc(z_size * sizeof(pthread_t));
-    // buffers
-    buffer_t buffer1;
-    buffer_t buffer2;
-    
+    pthread_t estudante[100];
+    pthread_t monitor;
 
-      if (pthread_mutex_init(&buffer1.mutex, NULL) != 0)
-      {
-        perror("Error on mutex 1 creation");
-        exit(EXIT_FAILURE);
-      }
-    if (pthread_mutex_init(&buffer2.mutex, NULL) != 0) {
-      perror("Error on mutex 2 creation");
-      exit(EXIT_FAILURE);
-    }
+    // cadeiras init
+    sem_init(&cadeiras, 0, n);
+    sem_init(&estudantes, 0, 0);
 
-    buffer1.number = 1;
-    buffer2.number = 2;
-    // itens init
-    sem_init(&buffer1.itens, 0, 0);
-    sem_init(&buffer2.itens, 0, 0);
-
-    // vagas init
-    sem_init(&buffer1.vagas, 0, b1_size);
-    sem_init(&buffer2.vagas, 0, b2_size);
+    // monitoria init
+    sem_init(&monitoria, 0, 1);
 
   
     // ###########################################
@@ -167,48 +94,42 @@ int main (int argc, char *argv[]){
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE);
 
-    buffer_t* buffers[2];
-    buffers[0] = &buffer1;
-    buffers[1] = &buffer2;
     int status;
-    int i;
-    for (i = 0; i < x_size; i++) {
-      status = pthread_create(&X[i], &attr, threadX, (void *) &buffer1);
-        if(status){
-            perror("pthread_create");
-            exit(1);
-        }
+    status = pthread_create(&monitor, &attr, threadMonitor, NULL);
+    if(status){
+        perror("Erro criação thread monitor");
+        exit(1);
     }
-    printf("Threads X criadas \n");
-    for (i = 0; i < y_size; i++)
-    {
-      status = pthread_create(&Y[i], &attr, threadY, (void *) buffers);
-        if(status){
-            perror("pthread_create");
-            exit(1);
-        }
-    }
-    printf("Threads Y criadas \n");
-    for (i = 0; i < z_size; i++) {
-      status = pthread_create(&Z[i], &attr, threadZ, (void *) &buffer2);
-        if(status){
-            perror("pthread_create");
-            exit(1);
-        }
-    }
-    printf("Threads Z criadas \n");
+
 
     termios oldt;
     tcgetattr(STDIN_FILENO, &oldt);
     termios newt = oldt;
     newt.c_lflag &= ~(ECHO | ICANON);
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-    while (1) {
+    char um;
+    int i = 0;
+    while (on)
+    {
       um = getchar();
-      sleep(0.1);
+      if (um == 'e') {
+        status = pthread_create(&estudante[i], &attr, threadEstudante, NULL);
+        if(status){
+            perror("Erro criação thread estudante");
+            exit(1);
+        }
+        if (i == 99) {
+          i = 0;
+        } else {
+          i++;
+        }
+      } else if (um == 'x') {
+        on = 0;
+      }
     }
+    printf("Acaba o momento de monitoria\n");
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 
     pthread_attr_destroy (&attr);
-    pthread_exit(NULL);
+    exit(0);
 }
